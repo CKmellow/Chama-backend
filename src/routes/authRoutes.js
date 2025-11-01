@@ -84,51 +84,51 @@ router.post('/login', async (req, res) => {
   }
 })
 
-// ✅ GOOGLE OAUTH LOGIN
-router.post('/google', async (req, res) => {
-  try {
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: process.env.GOOGLE_REDIRECT_URL, // e.g. http://localhost:4000/api/auth/callback
-      },
-    })
+// // ✅ GOOGLE OAUTH LOGIN
+// router.post('/google', async (req, res) => {
+//   try {
+//     const { data, error } = await supabase.auth.signInWithOAuth({
+//       provider: 'google',
+//       options: {
+//         redirectTo: process.env.GOOGLE_REDIRECT_URL, // e.g. http://localhost:4000/api/auth/callback
+//       },
+//     })
 
-    if (error) throw error
+//     if (error) throw error
 
-    res.json({ url: data.url }) // Frontend should open this URL in a WebView or Chrome tab
-  } catch (err) {
-    console.error('Google OAuth error:', err.message)
-    res.status(400).json({ error: err.message })
-  }
-})
-
-// ✅ GOOGLE CALLBACK
-// router.get('/callback', async (req, res) => {
-//   // Supabase automatically handles redirect + session exchange
-//   res.send('Google authentication successful. You can close this tab.')
+//     res.json({ url: data.url }) // Frontend should open this URL in a WebView or Chrome tab
+//   } catch (err) {
+//     console.error('Google OAuth error:', err.message)
+//     res.status(400).json({ error: err.message })
+//   }
 // })
-router.get('/callback', async (req, res) => {
-  try {
-    const code = req.query.code
 
-    if (!code) {
-      return res.status(400).send('Missing authorization code')
-    }
+// // ✅ GOOGLE CALLBACK
+// // router.get('/callback', async (req, res) => {
+// //   // Supabase automatically handles redirect + session exchange
+// //   res.send('Google authentication successful. You can close this tab.')
+// // })
+// router.get('/callback', async (req, res) => {
+//   try {
+//     const code = req.query.code
 
-    // Exchange the code for a session
-    const { data, error } = await supabase.auth.exchangeCodeForSession(code)
-    if (error) throw error
+//     if (!code) {
+//       return res.status(400).send('Missing authorization code')
+//     }
 
-    const accessToken = data.session.access_token
+//     // Exchange the code for a session
+//     const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+//     if (error) throw error
 
-    // Redirect to Android deep link
-    const redirectUrl = `myapp://auth?token=${accessToken}`
-    return res.redirect(redirectUrl)
-  } catch (err) {
-    console.error('Auth callback error:', err.message)
-    res.status(500).send('Authentication failed')
-  }
-})
+//     const accessToken = data.session.access_token
+
+//     // Redirect to Android deep link
+//     const redirectUrl = `myapp://auth?token=${accessToken}`
+//     return res.redirect(redirectUrl)
+//   } catch (err) {
+//     console.error('Auth callback error:', err.message)
+//     res.status(500).send('Authentication failed')
+//   }
+// })
 
 export default router
