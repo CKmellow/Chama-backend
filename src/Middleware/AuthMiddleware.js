@@ -1,5 +1,5 @@
 // src/Middleware/AuthMiddleware.js
-import { supabase } from '../config/supabaseClient.js'
+import { supabase } from '../config/SupabaseClient.js'
 
 // optional roles: e.g. ['secretary', 'chairperson']
 export function authMiddleware(roles = []) {

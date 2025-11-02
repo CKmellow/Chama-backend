@@ -4,6 +4,7 @@ import express from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
 import authRoutes from './routes/authRoutes.js' // make sure this path exists
+import chamaRoutes from './routes/chamaRoutes.js'
 
 dotenv.config()
 
@@ -31,6 +32,8 @@ app.use(cors(corsOptions))
 app.use(express.json())
 
 // ✅ Auth routes (connect to Supabase later)
+
 app.use('/api/auth', authRoutes)
+app.use('/api/chamas', chamaRoutes)
 
 export default app
