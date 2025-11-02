@@ -2,6 +2,7 @@
 import express from 'express'
 import { supabase } from '../config/SupabaseClient.js'
 import { authMiddleware } from '../Middleware/AuthMiddleware.js'
+import { authorizeRoles } from '../Middleware/roleMiddleware.js'
 
 // Helper to generate a 6-letter alphanumeric code
 function generateInviteCode() {
@@ -16,7 +17,7 @@ function generateInviteCode() {
 const router = express.Router()
 
 // POST /api/chamas - Create chama
-router.post('/create', authMiddleware(), async (req, res) => {
+router.post('/create', authMiddleware(), authorizeRoles('secretary', 'chairperson'), async (req, res) => {
   try {
     const {
       chama_name,
@@ -61,7 +62,7 @@ router.post('/create', authMiddleware(), async (req, res) => {
 })
 
 // PUT /api/chamas/:id - Edit chama
-router.put('/edit/:id', authMiddleware(), async (req, res) => {
+router.put('/edit/:id', authMiddleware(), authorizeRoles('secretary', 'chairperson'), async (req, res) => {
   try {
     const chamaId = req.params.id
     const userId = req.user.id
@@ -79,7 +80,7 @@ router.put('/edit/:id', authMiddleware(), async (req, res) => {
 })
 
 // DELETE /api/chamas/:id - Delete chama
-router.delete('delete/:id', authMiddleware(), async (req, res) => {
+router.delete('delete/:id', authMiddleware(), authorizeRoles('secretary', 'chairperson'), async (req, res) => {
   try {
     const chamaId = req.params.id
     const userId = req.user.id
@@ -95,7 +96,7 @@ router.delete('delete/:id', authMiddleware(), async (req, res) => {
 })
 
 // POST /api/chamas/:id/regenerate-invite - Regenerate invitation code
-router.post('/:id/regenerate-invite', authMiddleware(), async (req, res) => {
+router.post('/:id/regenerate-invite', authMiddleware(), authorizeRoles('secretary', 'chairperson'), async (req, res) => {
   try {
     const chamaId = req.params.id
     const userId = req.user.id
@@ -112,7 +113,7 @@ router.post('/:id/regenerate-invite', authMiddleware(), async (req, res) => {
 })
 
 // PATCH /api/chamas/:id/toggle-invite - Toggle invitation code active
-router.patch('/:id/toggle-invite', authMiddleware(), async (req, res) => {
+router.patch('/:id/toggle-invite', authMiddleware(), authorizeRoles('secretary', 'chairperson'), async (req, res) => {
   try {
     const chamaId = req.params.id
     const userId = req.user.id
@@ -129,7 +130,7 @@ router.patch('/:id/toggle-invite', authMiddleware(), async (req, res) => {
 })
 
 // PATCH /api/chamas/:id/contribution - Change contribution amount/frequency
-router.patch('/:id/contribution', authMiddleware(), async (req, res) => {
+router.patch('/:id/contribution', authMiddleware(), authorizeRoles('secretary', 'chairperson'), async (req, res) => {
   try {
     const chamaId = req.params.id
     const userId = req.user.id
@@ -146,7 +147,7 @@ router.patch('/:id/contribution', authMiddleware(), async (req, res) => {
 })
 
 // PATCH /api/chamas/:id/meeting - Change meeting frequency/day
-router.patch('/:id/meeting', authMiddleware(), async (req, res) => {
+router.patch('/:id/meeting', authMiddleware(), authorizeRoles('secretary', 'chairperson'), async (req, res) => {
   try {
     const chamaId = req.params.id
     const userId = req.user.id
@@ -163,7 +164,7 @@ router.patch('/:id/meeting', authMiddleware(), async (req, res) => {
 })
 
 // PATCH /api/chamas/:id/active - Mark chama active/inactive
-router.patch('/:id/active', authMiddleware(), async (req, res) => {
+router.patch('/:id/active', authMiddleware(), authorizeRoles('secretary', 'chairperson'), async (req, res) => {
   try {
     const chamaId = req.params.id
     const userId = req.user.id
