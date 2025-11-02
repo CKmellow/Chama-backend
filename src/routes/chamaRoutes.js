@@ -16,7 +16,7 @@ function generateInviteCode() {
 const router = express.Router()
 
 // POST /api/chamas - Create chama
-router.post('/', authMiddleware(), async (req, res) => {
+router.post('/create', authMiddleware(), async (req, res) => {
   try {
     const {
       chama_name,
@@ -61,7 +61,7 @@ router.post('/', authMiddleware(), async (req, res) => {
 })
 
 // PUT /api/chamas/:id - Edit chama
-router.put('/:id', authMiddleware(), async (req, res) => {
+router.put('/edit/:id', authMiddleware(), async (req, res) => {
   try {
     const chamaId = req.params.id
     const userId = req.user.id
@@ -79,7 +79,7 @@ router.put('/:id', authMiddleware(), async (req, res) => {
 })
 
 // DELETE /api/chamas/:id - Delete chama
-router.delete('/:id', authMiddleware(), async (req, res) => {
+router.delete('delete/:id', authMiddleware(), async (req, res) => {
   try {
     const chamaId = req.params.id
     const userId = req.user.id
