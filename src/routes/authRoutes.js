@@ -67,11 +67,11 @@ router.post('/login', async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     )
-    // Return user info (excluding password) and token
+    // Return user info (excluding password) and access_token
     const { password: _, ...userInfo } = user
     res.json({
       message: 'Login successful',
-      token,
+      access_token: token,
       user: userInfo,
     })
   } catch (err) {

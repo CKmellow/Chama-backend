@@ -61,6 +61,43 @@ router.post('/create', authMiddleware(), authorizeRoles('secretary', 'chairperso
   }
 })
 
+// GET /api/chamas/fetch/chamas - Fetch all chamas, always return array
+router.get('/fetch/chamas', authMiddleware(), async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('chamas')
+      .select('*')
+      .order('created_at', { ascending: false })
+    if (error) throw error
+    // Force array output
+    let chamas = []
+    if (Array.isArray(data)) {
+      chamas = data
+    } else if (data && typeof data === 'object') {
+      chamas = [data]
+    }
+    res.json({ chamas })
+  } catch (err) {
+    res.status(400).json({ error: err.message })
+  }
+})
+
+// GET /api/chamas/fetch/:id - Fetch a specific chama by ID
+router.get('/fetch/:id', authMiddleware(), async (req, res) => {
+  try {
+    const chamaId = req.params.id
+    const { data, error } = await supabase
+      .from('chamas')
+      .select('*')
+      .eq('chama_id', chamaId)
+      .single()
+    if (error || !data) return res.status(404).json({ error: 'Chama not found' })
+    res.json({ chama: data })
+  } catch (err) {
+    res.status(400).json({ error: err.message })
+  }
+})
+
 // PUT /api/chamas/:id - Edit chama
 router.put('/edit/:id', authMiddleware(), authorizeRoles('secretary', 'chairperson'), async (req, res) => {
   try {
