@@ -80,7 +80,7 @@ router.put('/edit/:id', authMiddleware(), authorizeRoles('secretary', 'chairpers
 })
 
 // DELETE /api/chamas/:id - Delete chama
-router.delete('delete/:id', authMiddleware(), authorizeRoles('secretary', 'chairperson'), async (req, res) => {
+router.delete('/delete/:id', authMiddleware(), authorizeRoles('secretary', 'chairperson'), async (req, res) => {
   try {
     const chamaId = req.params.id
     const userId = req.user.id
