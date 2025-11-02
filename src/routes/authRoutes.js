@@ -71,7 +71,7 @@ router.post('/login', async (req, res) => {
     const { password: _, ...userInfo } = user
     res.json({
       message: 'Login successful',
-      token,
+      access_token: token, // <-- change 'token' to 'access_token'
       user: userInfo,
     })
   } catch (err) {
