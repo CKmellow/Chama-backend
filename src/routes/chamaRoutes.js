@@ -180,4 +180,42 @@ router.patch('/:id/active', authMiddleware(), authorizeRoles('secretary', 'chair
   }
 })
 
+// ✅ GET /api/chamas - Get all chamas
+router.get('/fetch/chamas', authMiddleware(), async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('chamas')
+      .select('*')
+      .order('created_at', { ascending: false })
+
+    if (error) throw error
+
+    res.json({ chamas: data })
+  } catch (err) {
+    res.status(400).json({ error: err.message })
+  }
+})
+
+// ✅ GET /api/chamas/:id - Get details for a specific chama
+router.get('/fetch/:id', authMiddleware(), async (req, res) => {
+  try {
+    const chamaId = req.params.id
+    const { data, error } = await supabase
+      .from('chamas')
+      .select('*')
+      .eq('chama_id', chamaId)
+      .single()
+
+    if (error) {
+      if (error.code === 'PGRST116') return res.status(404).json({ error: 'Chama not found' })
+      throw error
+    }
+
+    res.json({ chama: data })
+  } catch (err) {
+    res.status(400).json({ error: err.message })
+  }
+})
+
+
 export default router
