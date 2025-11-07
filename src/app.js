@@ -5,6 +5,7 @@ import cors from 'cors'
 import dotenv from 'dotenv'
 import authRoutes from './routes/authRoutes.js' // make sure this path exists
 import chamaRoutes from './routes/chamaRoutes.js'
+import transactionRoutes from './routes/transactionRoutes.js'
 
 dotenv.config()
 
@@ -35,5 +36,6 @@ app.use(express.json())
 
 app.use('/api/auth', authRoutes)
 app.use('/api/chamas', chamaRoutes)
+app.use('/api/transactions', transactionRoutes)
 
 export default app
