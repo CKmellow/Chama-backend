@@ -115,4 +115,53 @@ router.post('/reset-password', async (req, res) => {
   }
 })
 
+import { authMiddleware } from '../Middleware/AuthMiddleware.js'
+// ✅ GET /api/auth/me - Get current user's profile
+router.get('/me', authMiddleware(), async (req, res) => {
+  try {
+    const userId = req.user.id
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('id, first_name, last_name, email, phone_number, role, created_at, updated_at')
+      .eq('id', userId)
+      .single()
+    if (error || !user) return res.status(404).json({ error: 'User not found' })
+    res.json({ user })
+  } catch (err) {
+    res.status(400).json({ error: err.message })
+  }
+})
+
+// ✅ PATCH /api/auth/me - Edit current user's profile (except id, email, created_at, updated_at)
+router.patch('/me', authMiddleware(), async (req, res) => {
+  try {
+    const userId = req.user.id
+    // Only allow updates to first_name, last_name, phone_number, role, password
+    const allowedFields = ['first_name', 'last_name', 'phone_number', 'role', 'password']
+    const updates = {}
+    for (const key of allowedFields) {
+      if (key in req.body) {
+        updates[key] = req.body[key]
+      }
+    }
+    // If password is being updated, hash it
+    if (updates.password) {
+      const bcrypt = await import('bcrypt')
+      updates.password = await bcrypt.default.hash(updates.password, 10)
+    }
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ error: 'No valid fields to update' })
+    }
+    const { data, error } = await supabase
+      .from('users')
+      .update(updates)
+      .eq('id', userId)
+      .select('id, first_name, last_name, email, phone_number, role, created_at, updated_at')
+    if (error) throw error
+    res.json({ message: 'Profile updated', user: data[0] })
+  } catch (err) {
+    res.status(400).json({ error: err.message })
+  }
+})
+
 export default router
