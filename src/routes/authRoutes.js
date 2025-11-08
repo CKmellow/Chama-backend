@@ -136,8 +136,12 @@ router.get('/me', authMiddleware(), async (req, res) => {
 router.patch('/me', authMiddleware(), async (req, res) => {
   try {
     const userId = req.user.id
-    // Only allow updates to first_name, last_name, phone_number, role, password
-    const allowedFields = ['first_name', 'last_name', 'phone_number', 'role', 'password']
+    // Only allow user to edit their own profile
+    if (req.body.id && req.body.id !== userId) {
+      return res.status(403).json({ error: 'You can only edit your own profile.' })
+    }
+    // Only allow updates to first_name, last_name, phone_number, password
+    const allowedFields = ['first_name', 'last_name', 'phone_number', 'password']
     const updates = {}
     for (const key of allowedFields) {
       if (key in req.body) {
