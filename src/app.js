@@ -6,6 +6,7 @@ import dotenv from 'dotenv'
 import authRoutes from './routes/authRoutes.js' // make sure this path exists
 import chamaRoutes from './routes/chamaRoutes.js'
 import transactionRoutes from './routes/transactionRoutes.js'
+import chamaMemberRoutes from './routes/chamamemberRoutes.js'
 
 dotenv.config()
 
@@ -36,6 +37,7 @@ app.use(express.json())
 
 app.use('/api/auth', authRoutes)
 app.use('/api/chamas', chamaRoutes)
+app.use('/api/chamamembers', chamaMemberRoutes)
 app.use('/api/transactions', transactionRoutes)
 
 export default app

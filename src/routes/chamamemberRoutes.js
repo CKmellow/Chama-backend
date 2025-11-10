@@ -59,14 +59,20 @@ router.put('/:id', authMiddleware(), async (req, res) => {
   try {
     const memberId = req.params.id;
     const updateFields = req.body;
+    console.log('PUT /api/chama_members/:id', { memberId, updateFields });
     const { data, error } = await supabase
       .from('chama_members')
       .update(updateFields)
       .eq('id', memberId)
       .select();
+    console.log('Supabase update response:', { data, error });
     if (error) throw error;
+    if (!data || data.length === 0) {
+      return res.status(404).json({ error: 'No member updated. Check memberId and fields.' });
+    }
     res.json({ message: 'Member updated', member: data[0] });
   } catch (err) {
+    console.error('PUT error:', err);
     res.status(400).json({ error: err.message });
   }
 });
