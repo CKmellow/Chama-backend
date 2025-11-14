@@ -91,5 +91,16 @@ router.delete('/:id', authMiddleware(), async (req, res) => {
     res.status(400).json({ error: err.message });
   }
 });
-
+// PATCH /api/chama_member/:id
+router.patch('/chama_member/:id', authMiddleware(), async (req, res) => {
+  const memberId = req.params.id;
+  const { contribution_amount, role } = req.body;
+  const { data, error } = await supabase
+    .from('chama_member')
+    .update({ contribution_amount, role })
+    .eq('id', memberId)
+    .select();
+  if (error) return res.status(400).json({ error: error.message });
+  res.json({ message: 'Member updated', member: data[0] });
+});
 export default router;

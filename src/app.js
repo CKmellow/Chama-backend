@@ -17,6 +17,7 @@ const allowedOrigins = [
   'http://10.0.2.2:4000',   // Android emulator loopback
   'http://127.0.0.1:4000',  // fallback local dev
   'http://localhost:4000',
+
 ]
 
 const corsOptions = {
