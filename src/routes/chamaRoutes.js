@@ -144,7 +144,88 @@ router.post('/:id/regenerate-invite', authMiddleware(), authorizeRoles('secretar
     res.status(400).json({ error: err.message })
   }
 })
+// POST /api/chamas/:id/invite-member - Invite a member with a unique code
+router.post('/:id/invite-member', authMiddleware(), authorizeRoles('secretary', 'chairperson'), async (req, res) => {
+  try {
+    const chamaId = req.params.id;
+    const userId = req.user.id;
+    const { memberId } = req.body;
+    if (!memberId) return res.status(400).json({ error: 'memberId required' });
 
+    // Check chama ownership
+    const { data: chama, error: findErr } = await supabase
+      .from('chamas')
+      .select('created_by')
+      .eq('chama_id', chamaId)
+      .single();
+    if (findErr || !chama) return res.status(404).json({ error: 'Chama not found' });
+    if (chama.created_by !== userId) return res.status(403).json({ error: 'Forbidden' });
+
+    // Generate unique invite code
+    let inviteCode;
+    let isUnique = false;
+    while (!isUnique) {
+      inviteCode = generateInviteCode();
+      const { data: existing } = await supabase
+        .from('chama_invites')
+        .select('id')
+        .eq('code', inviteCode)
+        .single();
+      if (!existing) isUnique = true;
+    }
+
+    // Save invite
+    const { error: insertErr } = await supabase
+      .from('chama_invites')
+      .insert([{
+        chama_id: chamaId,
+        member_id: memberId,
+        code: inviteCode,
+        invited_by: userId,
+        invited_at: new Date().toISOString(),
+        status: 'pending'
+      }]);
+    if (insertErr) throw insertErr;
+
+    // TODO: Send invite code to member (e.g., email/SMS)
+
+    res.json({ success: true, code: inviteCode });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+// GET /api/chamas/my-chamas - Fetch chamas for the current user
+router.get('/my-chamas', authMiddleware(), async (req, res) => {
+  try {
+    const userId = req.user.id;
+    // Get all chama_ids where user is a member
+    const { data: memberRows, error: memberErr } = await supabase
+      .from('chama_members')
+      .select('chama_id')
+      .eq('user_id', userId);
+
+    if (memberErr) throw memberErr;
+    if (!memberRows || memberRows.length === 0) return res.json({ chamas: [] });
+
+    const chamaIds = memberRows.map(row => row.chama_id);
+
+    // Fetch chamas with enriched members
+    const { data: chamas, error: chamaErr } = await supabase
+      .from('chamas')
+      .select('*, chama_members(*)')
+      .in('chama_id', chamaIds)
+      .order('created_at', { ascending: false });
+
+    if (chamaErr) throw chamaErr;
+
+    // Optionally enrich members as in your other endpoint
+    // ...enrichment logic here...
+
+    res.json({ chamas });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
 // PATCH /api/chamas/:id/toggle-invite - Toggle invitation code active
 router.patch('/:id/toggle-invite', authMiddleware(), authorizeRoles('secretary', 'chairperson'), async (req, res) => {
   try {
@@ -233,5 +314,64 @@ router.get('/fetch/:id', authMiddleware(), async (req, res) => {
     res.status(400).json({ error: err.message });
   }
 });
+router.post('/join', authMiddleware(), async (req, res) => {
+  try {
+    const { code } = req.body;
+    const userId = req.user.id;
+    if (!code) return res.status(400).json({ error: 'Invite code required' });
 
+    // Find invite by code
+    const { data: invite, error: inviteErr } = await supabase
+      .from('invite_codes')
+      .select('*')
+      .eq('code', code)
+      .eq('status', 'pending')
+      .single();
+    if (inviteErr || !invite) return res.status(404).json({ error: 'Invalid or expired invite code' });
+
+    // Check if user is already a member
+    const { data: member, error: memberErr } = await supabase
+      .from('chama_members')
+      .select('id')
+      .eq('chama_id', invite.chama_id)
+      .eq('user_id', userId)
+      .single();
+    if (member) return res.status(400).json({ error: 'Already a member' });
+
+    // Add user to chama_members
+    const { error: addErr } = await supabase
+      .from('chama_members')
+      .insert([{
+        chama_id: invite.chama_id,
+        user_id: userId,
+        role: 'member',
+        joined_at: new Date().toISOString(),
+        status: 'active'
+      }]);
+    if (addErr) throw addErr;
+
+    // Mark invite as used
+    await supabase
+      .from('chama_invites')
+      .update({ status: 'used', used_by: userId, used_at: new Date().toISOString() })
+      .eq('id', invite.id);
+
+    res.json({ success: true, message: 'Joined chama successfully' });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+router.post('/invite-codes', async (req, res) => {
+  const { code, chamaId, chamaName } = req.body;
+  // Save 'code' and chama details to Supabase
+  try {
+    const { data, error } = await supabase
+      .from('invite_codes')
+      .insert([{ code, chama_id: chamaId, chama_name: chamaName }]);
+    if (error) throw error;
+    res.json({ message: 'Invite code stored', data });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 export default router

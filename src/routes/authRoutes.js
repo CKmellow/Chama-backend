@@ -43,7 +43,24 @@ router.post('/signup', async (req, res) => {
     res.status(400).json({ error: err.message })
   }
 })
-
+// ✅ GET /api/users/:id - Get user profile by userId
+router.get('/users/:id', async (req, res) => {
+  try {
+    const userId = req.params.id;
+    console.log('Fetching user with id:', userId);
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('id, first_name, last_name, email, phone_number, role')
+      .eq('id', userId)
+      .single();
+    console.log('Supabase response:', { user, error });
+    if (error || !user) return res.status(404).json({ error: 'User not found', details: error?.message });
+    res.json({ user });
+  } catch (err) {
+    console.error('GET /users/:id error:', err);
+    res.status(400).json({ error: err.message });
+  }
+})
 // ✅ LOGIN (email/password)
 router.post('/login', async (req, res) => {
   const { email, password } = req.body
