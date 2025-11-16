@@ -7,6 +7,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.78.0",
+    "asynckit": "^0.4.0",
     "axios": "^1.13.2",
     "bcrypt": "^6.0.0",
     "combined-stream": "^1.0.8",
