@@ -17,7 +17,7 @@ function generateInviteCode() {
 const router = express.Router()
 
 // POST /api/chamas - Create chama
-router.post('/create', authMiddleware(), authorizeRoles('secretary', 'chairperson'), async (req, res) => {
+router.post('/create', authMiddleware(), async (req, res) => {
   try {
     const {
       chama_name,
@@ -55,25 +55,69 @@ router.post('/create', authMiddleware(), authorizeRoles('secretary', 'chairperso
     ]).select()
     if (error) throw error
 
-    // Automatically add creator to chama_members
+    // Automatically add creator to chama_members as secretary
     const chama = data[0];
     const memberPayload = {
       chama_id: chama.chama_id,
       user_id: created_by,
-      role: req.user.role, 
-      contribution_amount: monthly_contribution_amount,
+      role: 'secretary',
       joined_at: new Date().toISOString()
     };
     const { error: memberError } = await supabase.from('chama_members').insert([memberPayload]);
     if (memberError) {
       return res.status(500).json({ error: 'Chama created but failed to add creator to members', details: memberError.message });
     }
-
     res.status(201).json({ message: 'Chama created', chama })
   } catch (err) {
     res.status(400).json({ error: err.message })
+    console.log(err)
   }
-})
+});
+
+// POST /api/chamas/join - Join chama using invitation code
+router.post('/join', authMiddleware(), async (req, res) => {
+  try {
+    const { invitation_code } = req.body;
+    const user_id = req.user.id;
+    // Find chama by invitation code
+    const { data: chama, error: chamaErr } = await supabase
+      .from('chamas')
+      .select('chama_id, invitation_code, is_invitation_code_active')
+      .eq('invitation_code', invitation_code)
+      .eq('is_invitation_code_active', true)
+      .single();
+    if (chamaErr || !chama) {
+      return res.status(404).json({ error: 'Invalid or inactive invitation code' });
+    }
+    // Check if user is already a member
+    const { data: member, error: memberErr } = await supabase
+      .from('chama_members')
+      .select('id')
+      .eq('chama_id', chama.chama_id)
+      .eq('user_id', user_id)
+      .single();
+    if (member) {
+      return res.status(409).json({ error: 'Already a member of this chama' });
+    }
+    // Add user to chama_members as 'user'
+    const memberPayload = {
+      chama_id: chama.chama_id,
+      user_id,
+      role: 'user',
+      joined_at: new Date().toISOString()
+    };
+    const { data: newMember, error: addErr } = await supabase
+      .from('chama_members')
+      .insert([memberPayload])
+      .select();
+    if (addErr) throw addErr;
+    res.status(201).json({ message: 'Joined chama successfully', member: newMember[0] });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+    console.log(err);
+  }
+});
+
 
 // PUT /api/chamas/:id - Edit chama
 router.put('/edit/:id', authMiddleware(), authorizeRoles('secretary', 'chairperson'), async (req, res) => {
@@ -197,47 +241,49 @@ router.patch('/:id/active', authMiddleware(), authorizeRoles('secretary', 'chair
 // ✅ GET /api/chamas - Get all chamas
 router.get('/fetch/chamas', authMiddleware(), async (req, res) => {
   try {
+    const userId = req.user.id;
+    // Get all chama_ids where user is a member
+    const { data: memberships, error: memberErr } = await supabase
+      .from('chama_members')
+      .select('chama_id')
+      .eq('user_id', userId);
+    if (memberErr) throw memberErr;
+    const chamaIds = memberships.map(m => m.chama_id);
+    if (chamaIds.length === 0) return res.json({ chamas: [] });
+    // Fetch only chamas where user is a member
     const { data, error } = await supabase
       .from('chamas')
       .select('*, chama_members(*)')
+      .in('chama_id', chamaIds)
       .order('created_at', { ascending: false });
-
     if (error) throw error;
-
-    // Helper functions (implement these based on your schema)
+    // Helper functions
     async function getRoleForUser(chama, userId) {
       const member = (chama.chama_members || []).find(m => m.user_id === userId);
       return member ? member.role : null;
     }
-
     async function getMyContributions(chama, userId) {
       const { data, error } = await supabase
         .from('chama_members')
         .select('contribution_amount')
         .eq('chama_id', chama.chama_id)
         .eq('user_id', userId);
-
       if (error || !data || data.length === 0) return "0";
       const total = data.reduce((sum, row) => sum + (parseFloat(row.contribution_amount) || 0), 0);
       return total.toString();
     }
-
     async function getTotalBalance(chama) {
       return chama.total_balance != null ? chama.total_balance.toString() : "0";
     }
-
     async function getStatus(chama) {
       return chama.is_active ? "Active" : "Inactive";
     }
-
     async function getStatusColor(chama) {
       return chama.is_active ? "#4CAF50" : "#F44336";
     }
-
     async function getNextMeeting(chama) {
       return ""; // Placeholder
     }
-
     // Build chamas with custom fields and enrich members with user info
     const chamasWithCustomFields = await Promise.all(data.map(async chama => {
       // Enrich each member with user info
@@ -268,7 +314,6 @@ router.get('/fetch/chamas', authMiddleware(), async (req, res) => {
         members: enrichedMembers
       };
     }));
-
     res.json({ chamas: chamasWithCustomFields });
   } catch (err) {
     res.status(400).json({ error: err.message });

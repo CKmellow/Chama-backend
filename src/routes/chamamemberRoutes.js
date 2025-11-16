@@ -4,16 +4,28 @@ import { authMiddleware } from '../Middleware/AuthMiddleware.js';
 
 const router = express.Router();
 
-// GET /api/chama_members/:chamaId - Get all members for a chama
+// GET /api/chamamembers/:chamaId - Get all members for a chama
 router.get('/:chamaId', authMiddleware(), async (req, res) => {
   try {
     const chamaId = req.params.chamaId;
+    // Join chama_members with users to get name, email, phone number, and role
     const { data, error } = await supabase
       .from('chama_members')
-      .select('*')
+      .select('id, role, joined_at, status, user_id, users(first_name, last_name, email, phone_number)')
       .eq('chama_id', chamaId);
     if (error) throw error;
-    res.json({ members: data });
+    // Map to desired output: name, role, email, phoneNumber
+    const members = (data || []).map(m => ({
+      id: m.id,
+      user_id: m.user_id,
+      name: m.users ? `${m.users.first_name} ${m.users.last_name}`.trim() : '',
+      role: m.role,
+      email: m.users ? m.users.email : null,
+      phoneNumber: m.users ? m.users.phone_number : null,
+      joined_at: m.joined_at,
+      status: m.status
+    }));
+    res.json({ members });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
@@ -37,46 +49,6 @@ router.get('/:chamaId/me', authMiddleware(), async (req, res) => {
   }
 });
 
-// POST /api/chama_members - Add a member to a chama
-router.post('/', authMiddleware(), async (req, res) => {
-  try {
-    const { chama_id, user_id, role, contribution_amount } = req.body;
-    const { data, error } = await supabase
-      .from('chama_members')
-      .insert([
-        { chama_id, user_id, role, contribution_amount }
-      ])
-      .select();
-    if (error) throw error;
-    res.status(201).json({ message: 'Member added', member: data[0] });
-  } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
-});
-
-// PUT /api/chama_members/:id - Update a member's details
-router.put('/:id', authMiddleware(), async (req, res) => {
-  try {
-    const memberId = req.params.id;
-    const updateFields = req.body;
-    console.log('PUT /api/chama_members/:id', { memberId, updateFields });
-    const { data, error } = await supabase
-      .from('chama_members')
-      .update(updateFields)
-      .eq('id', memberId)
-      .select();
-    console.log('Supabase update response:', { data, error });
-    if (error) throw error;
-    if (!data || data.length === 0) {
-      return res.status(404).json({ error: 'No member updated. Check memberId and fields.' });
-    }
-    res.json({ message: 'Member updated', member: data[0] });
-  } catch (err) {
-    console.error('PUT error:', err);
-    res.status(400).json({ error: err.message });
-  }
-});
-
 // DELETE /api/chama_members/:id - Remove a member from a chama
 router.delete('/:id', authMiddleware(), async (req, res) => {
   try {
@@ -91,16 +63,5 @@ router.delete('/:id', authMiddleware(), async (req, res) => {
     res.status(400).json({ error: err.message });
   }
 });
-// PATCH /api/chama_member/:id
-router.patch('/chama_member/:id', authMiddleware(), async (req, res) => {
-  const memberId = req.params.id;
-  const { contribution_amount, role } = req.body;
-  const { data, error } = await supabase
-    .from('chama_member')
-    .update({ contribution_amount, role })
-    .eq('id', memberId)
-    .select();
-  if (error) return res.status(400).json({ error: error.message });
-  res.json({ message: 'Member updated', member: data[0] });
-});
+
 export default router;

@@ -121,6 +121,7 @@ router.post('/daraja-callback', async (req, res) => {
       if (tempErr || !tempMap) {
         console.error('Temp mapping not found for checkoutRequestId:', checkoutRequestId)
       } else {
+        // Insert successful contribution
         await supabase.from('contributions').insert([
           {
             chama_id: tempMap.chama_id,
@@ -132,10 +133,49 @@ router.post('/daraja-callback', async (req, res) => {
             status: 'success',
           }
         ])
+        // Update chama total_balance
+        const { data: chama, error: chamaErr } = await supabase
+          .from('chamas')
+          .select('total_balance')
+          .eq('chama_id', tempMap.chama_id)
+          .single()
+        if (!chama || chamaErr) {
+          console.error('Failed to fetch chama for balance update:', chamaErr)
+        } else {
+          const newBalance = Number(chama.total_balance || 0) + Number(tempMap.amount || 0)
+          const { error: updateErr } = await supabase
+            .from('chamas')
+            .update({ total_balance: newBalance })
+            .eq('chama_id', tempMap.chama_id)
+          if (updateErr) {
+            console.error('Failed to update chama total_balance:', updateErr)
+          }
+        }
         // Optionally, delete temp mapping after use
         await supabase.from('mpesa_stk_temp').delete().eq('checkout_request_id', checkoutRequestId)
       }
     }
+    // GET /api/transactions/user/:user_id/chama/:chama_id - Get all contributions of a user in a chama
+    router.get('/user/:user_id/chama/:chama_id', authMiddleware(), async (req, res) => {
+      const { user_id, chama_id } = req.params;
+      const requester = req.user;
+      // Only allow if requester is the user or admin
+      if (requester.id !== user_id && !['secretary', 'chairperson'].includes(requester.role)) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+      try {
+        const { data, error } = await supabase
+          .from('contributions')
+          .select('*')
+          .eq('user_id', user_id)
+          .eq('chama_id', chama_id)
+          .order('contributed_at', { ascending: false });
+        if (error) return res.status(400).json({ error: error.message });
+        res.json({ contributions: data });
+      } catch (err) {
+        res.status(400).json({ error: err.message });
+      }
+    });
     res.json({ message: 'Callback received' })
   } catch (err) {
     console.error('Daraja callback error:', err)
@@ -159,13 +199,13 @@ router.get('/chama/:chama_id', authMiddleware(['secretary', 'chairperson']), asy
   }
 })
 
-// GET /api/transactions/user/:user_id - Get all transactions by a user (user or admin)
+// GET /api/transactions/user/:user_id - Get all transactions by a user view all my transactions in all chamas
 router.get('/user/:user_id', authMiddleware(), async (req, res) => {
-  const user_id = req.params.user_id
-  const requester = req.user
-  // Only allow if requester is the user or admin
-  if (requester.id !== user_id && !['secretary', 'chairperson'].includes(requester.role)) {
-    return res.status(403).json({ error: 'Access denied' })
+  const user_id = req.params.user_id;
+  const requester = req.user;
+  // Only allow if requester is the user themself
+  if (requester.id !== user_id) {
+    return res.status(403).json({ error: 'Access denied: only the user can view their transactions.' });
   }
   try {
     const { data, error } = await supabase
@@ -180,12 +220,17 @@ router.get('/user/:user_id', authMiddleware(), async (req, res) => {
   }
 })
 
-// GET /api/transactions/user/:user_id/chama/:chama_id/total - Get total contributions for a user in a chama
+// GET /api/transactions/user/:user_id/chama/:chama_id/total - Get totals contributions for a user in a chama
+// sample output  {
+//     "total_amount": 3,
+//     "total_transactions": 1
+// }
 router.get('/user/:user_id/chama/:chama_id/total', authMiddleware(), async (req, res) => {
-  const { user_id, chama_id } = req.params
-  const requester = req.user
+  const { user_id, chama_id } = req.params;
+  const requester = req.user;
+  // Only allow if requester is the user themself or an admin (secretary/chairperson)
   if (requester.id !== user_id && !['secretary', 'chairperson'].includes(requester.role)) {
-    return res.status(403).json({ error: 'Access denied' })
+    return res.status(403).json({ error: 'Access denied: only the user or an admin can view this.' });
   }
   try {
     const { data, error } = await supabase
@@ -193,18 +238,18 @@ router.get('/user/:user_id/chama/:chama_id/total', authMiddleware(), async (req,
       .select('amount')
       .eq('user_id', user_id)
       .eq('chama_id', chama_id)
-      .eq('status', 'success')
-    if (error) throw error
-    const total_amount = data.reduce((sum, row) => sum + Number(row.amount), 0)
-    const total_transactions = data.length
-    res.json({ total_amount, total_transactions })
+      .eq('status', 'success');
+    if (error) throw error;
+    const total_amount = data.reduce((sum, row) => sum + Number(row.amount), 0);
+    const total_transactions = data.length;
+    res.json({ total_amount, total_transactions });
   } catch (err) {
-    res.status(400).json({ error: err.message })
+    res.status(400).json({ error: err.message });
   }
 })
 
 // GET /api/transactions/chama/:chama_id/total - Get total amount for a chama
-router.get('/chama/:chama_id/total', authMiddleware(['secretary', 'chairperson']), async (req, res) => {
+router.get('/chama/:chama_id/total', async (req, res) => {
   const chama_id = req.params.chama_id
   try {
     const { data, error } = await supabase
