@@ -4,6 +4,7 @@ dotenv.config()
 import dotenv from 'dotenv'
 dotenv.config()
 import app from './app.js'
+import { startSupabaseKeepAlive } from './services/supabaseKeepAlive.js'
 
 const PORT = process.env.PORT || 4000
 
@@ -13,3 +14,5 @@ const PORT = process.env.PORT || 4000
 app.listen(4000, '0.0.0.0', () => {
   console.log(`✅ Server running on port 4000`);
 }) 
+
+startSupabaseKeepAlive()
