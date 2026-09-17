@@ -1,0 +1,24 @@
+name: Supabase Keep Alive
+
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+jobs:
+  ping-db:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Ping Supabase database
+        env:
+          SUPABASE_DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
+        run: |
+          if [ -z "$SUPABASE_DATABASE_URL" ]; then
+            echo "Missing SUPABASE_DATABASE_URL secret"
+            exit 1
+          fi
+
+          psql "$SUPABASE_DATABASE_URL" -v ON_ERROR_STOP=1 -c "SELECT now() AS keep_alive_ping;"
